@@ -58,7 +58,8 @@ function showRootMenu() {
     const monitor = document.querySelector('.monitor');
     monitor.classList.remove('expanded');
     const btnExpand = document.getElementById('btn-expand');
-    btnExpand.innerText = '🔽';
+    // ★矢印を力強い黒三角に太くしました
+    btnExpand.innerText = '▼';
     btnExpand.style.opacity = '0.3'; 
 }
 
@@ -99,6 +100,15 @@ function setup() {
             window.speechSynthesis.cancel(); 
             talkAudio.pause();
             showRootMenu();
+            
+            // ★追加：カウンターに座った時のソフィーの挨拶
+            talkAudio.src = "./voices_mp3/menu_greeting.mp3"; 
+            const fallbackText = "いつもありがとうございます。今日はいかがされますか？";
+            talkAudio.onerror = () => { try { media.speak(fallbackText); } catch(e){} };
+            try {
+                const p = talkAudio.play();
+                if (p !== undefined) p.catch(() => { try { media.speak(fallbackText); } catch(e){} });
+            } catch(e) { try { media.speak(fallbackText); } catch(err){} }
         };
     }
 
@@ -112,7 +122,8 @@ function setup() {
         const monitor = document.querySelector('.monitor');
         const btn = document.getElementById('btn-expand');
         monitor.classList.toggle('expanded');
-        btn.innerText = monitor.classList.contains('expanded') ? '🔼' : '🔽';
+        // ★ここも力強い黒三角に連動させました
+        btn.innerText = monitor.classList.contains('expanded') ? '▲' : '▼';
     };
     
     const sophieWarp = document.getElementById('sophie-warp');
@@ -197,9 +208,7 @@ function next() {
         nav.updateNav(undefined, undefined, undefined, nav.curI + 1);
         const m = nav.curP[nav.curI];
         
-        // 【イノベーション：状況に応じたスマートな表示分岐】
         if (nav.state === "none") {
-            // ①トップ画面（ソフィーの顔）にいる場合は、リストに飛ばず顔を維持し、短いタイトルだけを作る
             let topText = isMusicMode ? `🎵 ${m.a}さんの「${m.ti}」です` : `🥃 ${m.th}：「${m.ti}」のお話です`;
             
             if (isMusicMode) { 
@@ -210,7 +219,6 @@ function next() {
                 prep(topText, false, m.id, m.txt); 
             }
         } else {
-            // ②リスト画面などをウロウロしている場合は、一番奥のメニューへ「強制書き換え＆ジャンプ」
             if (isMusicMode && nav.state !== "tit") {
                 const title = nav.curP[0] && nav.curP[0].a ? nav.curP[0].a : "再生リスト";
                 nav.updateNav("tit");
@@ -244,14 +252,13 @@ function extractYtId(u) {
 }
 
 function setMon(m, s) {
-    // ①トップ画面のままの場合は、裏で読み込ませつつ映像・画像はソフィーで固定
     if (nav.state === "none") {
         ytWrapper.style.display = 'none'; 
         img.style.display = 'block'; 
         img.src = './front_sophie.jpeg';
         
         document.querySelector('.monitor').classList.remove('expanded');
-        document.getElementById('btn-expand').innerText = '🔽';
+        btnExpand.innerText = '▼';
         document.getElementById('btn-expand').style.opacity = '0.3';
         
         if(m === 'v') { 
@@ -266,7 +273,6 @@ function setMon(m, s) {
         return;
     }
 
-    // ②通常時は指定された映像・画像をしっかり表示する
     ytWrapper.style.display = 'none'; 
     img.style.display = 'none'; 
     
@@ -286,7 +292,6 @@ function setMon(m, s) {
     }
 }
 
-// 【イノベーション】トップ画面のテロップは下部の「帯」にし、ソフィーの顔を隠さない設計
 function prep(t, isM, id = null, originalTxt = null) {
     window.speechSynthesis.cancel(); 
     try { talkAudio.pause(); if (talkAudio.readyState > 0) talkAudio.currentTime = 0; } catch(e){}
@@ -295,24 +300,22 @@ function prep(t, isM, id = null, originalTxt = null) {
     tel.style.display = 'block'; 
     tel.scrollTop = 0;
     
-    // 動的にテロップのCSSスタイルを書き換える
     if (nav.state === "none") {
-        tel.style.top = 'auto';           // 上からの配置を解除
-        tel.style.bottom = '0';           // 下部にピッタリくっつける
-        tel.style.height = 'auto';        // 文章の長さに合わせる
-        tel.style.background = 'rgba(0,0,0,0.6)'; // 少し透明度を上げて顔を馴染ませる
+        tel.style.top = 'auto';           
+        tel.style.bottom = '0';           
+        tel.style.height = 'auto';        
+        tel.style.background = 'rgba(0,0,0,0.6)'; 
     } else {
-        tel.style.top = '0';              // 従来通り全体を覆う
+        tel.style.top = '0';              
         tel.style.bottom = 'auto';
         tel.style.height = '100%';
         tel.style.background = 'rgba(0,0,0,0.75)';
     }
 
-    // 音声読み上げエラー時の保険には、元の長文を渡す
     let speakTxt = originalTxt ? originalTxt : t; 
 
     if(isM) {
-        setTimeout(() => { if(tel.innerText === t) tel.style.display = 'none'; }, 5000);
+        setTimeout(() => { if(lastTxt === t) tel.style.display = 'none'; }, 5000);
     } else if (id) {
         talkAudio.src = `./voices_mp3/${id}.mp3`;
         talkAudio.onerror = () => { try { media.speak(speakTxt); } catch(e){} };
@@ -334,21 +337,41 @@ function prep(t, isM, id = null, originalTxt = null) {
 
 function openMusic() {
     nav.updateNav("art"); let h = "";
+    
     h += `<div class="label">マスターお薦め</div>`;
     h += `<div class="artist-grid">`;
     h += `<div class="item" data-special="ソフィー" style="color: var(--blue);">🎤 ソフィー</div>`;
     h += `<div class="item" data-special="BGM">🎤 BGM</div>`;
     h += `<div class="item" data-special="昭和ソング">🎤 昭和ソング</div>`;
     h += `</div>`;
-    ['E','F','J','W','I','S'].forEach(f => {
+    
+    const preferredOrder = ['E', 'F', 'J', 'L', 'W', 'I', 'S']; 
+    const rawFs = [...new Set(nav.jData.map(d => d.f).filter(Boolean))];
+    const sortedFs = rawFs.sort((a, b) => {
+        let ia = preferredOrder.indexOf(a);
+        let ib = preferredOrder.indexOf(b);
+        if (ia === -1) ia = 999;
+        if (ib === -1) ib = 999;
+        return ia - ib;
+    });
+
+    sortedFs.forEach(f => {
         const arts = [...new Set(nav.jData.filter(d => d.f === f).map(d => d.a))];
         if(arts.length) { 
-            h += `<div class="label">${nav.jData.find(d => d.f === f).gName}</div>`; 
+            let labelName = "";
+            if (f === 'L') {
+                labelName = "特集コーナー";
+            } else {
+                const genreData = nav.jData.find(d => d.f === f && d.gName);
+                labelName = genreData ? genreData.gName : f;
+            }
+            h += `<div class="label">${labelName}</div>`; 
             h += `<div class="artist-grid">`;
             arts.forEach(a => { h += `<div class="item" data-artist="${a}">🎤 ${a}</div>`; }); 
             h += `</div>`;
         }
     });
+    
     render(h, (e) => { 
         const el = e.currentTarget;
         if(el.dataset.special) openSpecialSongs(el.dataset.special);
@@ -407,7 +430,6 @@ function openThemes(g) {
     render(h, (e) => { const t = e.currentTarget.dataset.th; if(t) openStories(t); });
 }
 
-// 【新規分離】奥のメニューを強制生成するための独立関数
 function renderStoryList(t) {
     let h = `<div class="label">${t}</div>`;
     nav.curP.forEach((d, i) => { 
